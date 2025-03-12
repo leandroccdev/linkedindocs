@@ -22,3 +22,8 @@ for l in [
         "urllib3.connectionpool"
     ]:
     logging.getLogger(l).setLevel(logging.ERROR)
+
+from .api import DocumentDownloader
+__all__ = [
+        "DocumentDownloader"
+    ]
