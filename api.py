@@ -69,12 +69,12 @@ class DocumentDownloader:
         if not self._document_url:
             err: str = "The document url is not set!"
             self._log.error(err)
-            raise Document.DownloadError(err)
+            raise self.DownloadError(err)
 
         if exists(output_file):
             err: str = f"File '{output_file}' already exists!"
             self._log.error(err)
-            raise Document.FileExistsError(err)
+            raise self.FileExistsError(err)
 
         # Download with progress bar
         self._log.debug(f"Downloading: {self._document_url}")
@@ -88,7 +88,7 @@ class DocumentDownloader:
                 ) as pb, \
                     open(output_file, 'wb') as f:
                 pb.write(f"Downloading: {output_file}...")
-                for chunk in req.iter_content(chunk_size=Document.CHUNK_BUFFER):
+                for chunk in req.iter_content(chunk_size=self.CHUNK_BUFFER):
                     pb.update(len(chunk))
                     f.write(chunk)
         self._log.debug("Download finished!")
@@ -112,7 +112,7 @@ class DocumentDownloader:
         if json_ld_tag not in content:
             err: str = f"json-ld tag not found!"
             self._log.error(err)
-            raise Document.DownloadError(err)
+            raise self.DownloadError(err)
 
         # Extract json-ld data
         self._log.debug("Extracting json-ld data...")
@@ -126,13 +126,13 @@ class DocumentDownloader:
             data: Dict = json.loads(ld_data)
         except json.decoder.JSONDecodeError as e:
             self._log.error(e)
-            raise Document.DownloadError(e)
+            raise self.DownloadError(e)
 
         # sharedContent not found
         if "sharedContent" not in data:
             err: str = "Key 'sharedContent' not found at json-ld data!"
             self._log.error(err)
-            raise Document.DownloadError(err)
+            raise self.DownloadError(err)
 
         # Document manifest url found
         self._manifest_url = data["sharedContent"]["url"]
@@ -148,7 +148,7 @@ class DocumentDownloader:
             Document.DownloadError
         '''
         if not self._manifest_url:
-            raise Document.DownloadError("The manifest url is not set!")
+            raise self.DownloadError("The manifest url is not set!")
 
         self._log.debug("Retrieving manifest...")
         content: str = self.__http_get(s, self._manifest_url) # type: ignore
@@ -158,13 +158,13 @@ class DocumentDownloader:
             manifest: Dict = json.loads(content)
         except json.decoder.JSONDecodeError as e:
             self._log.error(e)
-            raise Document.DownloadError(e)
+            raise self.DownloadError(e)
 
         # Document url not found at manifest
         if "transcribedDocumentUrl" not in manifest:
             err: str = "Key 'transcribedDocumentUrl' not found at manifest!"
             self._log.error(err)
-            raise Document.DownloadError(err)
+            raise self.DownloadError(err)
 
         self._document_url = manifest["transcribedDocumentUrl"]
         self._log.debug("Document url set")
@@ -184,7 +184,7 @@ class DocumentDownloader:
         if exists(output_file):
             err: str = f"File '{output_file}' already exists!"
             self._log.error(err)
-            raise Document.FileExistsError(err)
+            raise self.FileExistsError(err)
 
         self._log.debug("Creating session...")
         s: Session = Session()
