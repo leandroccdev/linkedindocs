@@ -349,7 +349,31 @@ class DocumentHandlerABC(ABC):
     def reset(self) -> None: ...
 
 
-class AttachmentCreator(Log, DocumentHandlerABC):
+class AccountSession(Log):
+    '''Provides an account to HTTP request with session cookies.'''
+
+    def __init__(self, cookies: Cookies) -> None:
+        '''Initialize the context.'''
+        Log.__init__(self)
+        self._cookies: Cookies = cookies
+        self._c_jsession_id: Optional[Cookie] = cookies.find("JSESSIONID")
+        if not self._c_jsession_id:
+            self._log.error(f"Cookie 'JSESSIONID' is necesary for csrf token!")
+            raise CookieNotFound("JSESSIONID")
+        self._c_jsession_value: str = self._c_jsession_id.value.replace('"', "")
+
+    def _set_session_cookies(self, s: Session) -> None:
+        '''Setup Cookie header in a `requests.Session` object.
+
+        Args:
+            s (`requests.Session`): The session instance object.
+        '''
+        cookies: str = "; ".join([f"{c.name}={c.value}" for c in self._cookies])
+        s.headers.update({ "Cookie": cookies })
+        self._log.debug("Cookies: " + cookies)
+
+
+class AttachmentCreator(AccountSession, DocumentHandlerABC):
     '''Create a new publication with a PDF document as attachment.'''
 
     def __init__(self, cookies: Cookies) -> None:
@@ -358,21 +382,14 @@ class AttachmentCreator(Log, DocumentHandlerABC):
         Raises:
             CookieNotFound: When JSESSIONID is not at cookies.
         '''
-        Log.__init__(self)
+        AccountSession.__init__(self, cookies)
         # Stores the publication to be sended (from upload method)
         self._publication: Publication
-        self._cookies: Cookies = cookies
         self._media_urn: str = ""
         # Url to upload document
         self._single_upload_url: str = ""
         # Upload process bar
         self._upload_process_bar: Optional[tqdm] = None
-
-        self._c_jsession_id: Optional[Cookie] = cookies.find("JSESSIONID")
-        if not self._c_jsession_id:
-            self._log.error(f"Cookie 'JSESSIONID' is necesary for csrf token!")
-            raise CookieNotFound("JSESSIONID")
-        self._c_jsession_value: str = self._c_jsession_id.value.replace('"', "")
 
     def __create_content(self, s: Session) -> Optional[NoReturn]:
         '''Creates the publication which the document as attachment.
@@ -570,18 +587,15 @@ class AttachmentCreator(Log, DocumentHandlerABC):
 
         self._log.debug("Setup session...")
         s: Session = Session()
-        # Setup cookies is simpler this way
-        h_cookies: str = "; ".join([f"{c.name}={c.value}" for c in self._cookies])
-        self._log.debug("Cookies: " + h_cookies)
-
         # Setup minimun headers, each method setup their own headers itself
         s.headers = {
-                "Cookie": h_cookies,
                 "csrf-token": self._c_jsession_value,
                 "Origin": Linkedin.BASE,
                 "Referer": Linkedin.FEED,
                 "User-Agent": USER_AGENT
             }
+        # Setup cookies is simpler this way
+        self._set_session_cookies(s)
 
         self._log.debug("Initiating upload process...")
         self.__request_upload_file(s)
