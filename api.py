@@ -431,9 +431,16 @@ class Document:
 
 
 class Publication:
+    '''Represents a linkedin publication.'''
 
+    # def __init__(self, **kwargs) -> None:
     def __init__(self, document: Document, text_comment: str, visibility: str
             ) -> None:
+        '''Initialize the publication.
+
+        Raises:
+            Exception: When visibility is unknown.
+        '''
         global logger
         self._log: logging.Logger = logger.getChild(self.__class__.__name__)
         self._text_comment: str = text_comment
