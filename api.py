@@ -105,6 +105,8 @@ class Cookies(list):
 
 class CookiesFileLoader:
     '''Parses json file export file by Cookie-Editor extension.'''
+    # Stores the necessary elements for the API correctly operation
+    REQUIRED = ["JSESSIONID"]
 
     def __init__(self, file_path: str) -> None:
         '''Initializes the file parser instance.
@@ -124,6 +126,21 @@ class CookiesFileLoader:
         self._cookies: Cookies = Cookies()
 
         self.__load_file()
+        self.__check_required_cookie()
+
+    def __check_required_cookie(self):
+        '''Check all the necessary elements are available.
+
+        Raises:
+            CookiesFileLoader: When a required element is not found.
+            Exception: When storage is empty.
+        '''
+        if not self._cookies:
+            raise Exception("Storage is empty!")
+
+        for rc in CookiesFileLoader.REQUIRED:
+            if not self._cookies.find(rc):
+                raise CookieNotFound(rc)
 
     def __load_file(self) -> Optional[NoReturn]:
         '''Parse cookies file.'''
