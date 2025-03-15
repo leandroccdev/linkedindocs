@@ -54,15 +54,15 @@ class ContentVisibility:
 class Cookie:
     '''Represents a HTTP Cookie.'''
 
-    def __init__(self, **kwargs) -> None:
-        '''Represents a cookie.
+    def __init__(self, name: str, value: str) -> None:
+        '''Initialize the instance.
 
         Args:
             name (str): Cookie name.
             value (str): Cookie value.
         '''
-        self._name: str = kwargs.get("name", "")
-        self._value: str = kwargs.get("value", "")
+        self._name: str = name
+        self._value: str = value
 
     def __hash__(self) -> int:
         return hash(str(self))
