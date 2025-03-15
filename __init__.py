@@ -23,7 +23,23 @@ for l in [
     ]:
     logging.getLogger(l).setLevel(logging.ERROR)
 
-from .api import DocumentDownloader
+from .api import (
+        AttachmentCreator,
+        Cookies,
+        CookiesFileLoader,
+        ContentVisibility,
+        Document,
+        DocumentDownloader,
+        Publication
+    )
+from . import exceptions
 __all__ = [
-        "DocumentDownloader"
+        "AttachmentCreator",
+        "Cookies",
+        "CookiesFileLoader",
+        "ContentVisibility",
+        "Document",
+        "DocumentDownloader",
+        "exceptions",
+        "Publication"
     ]
