@@ -1,10 +1,12 @@
 from .exceptions import *
+from io import BytesIO
 from typing import List
 from os.path import basename, exists
 from os import stat
 from requests import Session
 from time import sleep
 from tqdm import tqdm
+from tqdm.utils import CallbackIOWrapper
 from typing import Dict, Optional, NoReturn, Union
 import json
 import logging
@@ -475,6 +477,8 @@ class AttachmentCreator:
         self._media_urn: str = ""
         # Url to upload document
         self._single_upload_url: str = ""
+        # Upload process bar
+        self._upload_process_bar: Optional[tqdm] = None
 
         self._c_jsession_id: Optional[Cookie] = cookies.find("JSESSIONID")
         if not self._c_jsession_id:
@@ -594,6 +598,8 @@ class AttachmentCreator:
                 self._log.error(e)
                 raise UploadError(e)
 
+            self._log.debug("Response: " + req.text)
+
             self._media_urn = data["data"]["value"]["urn"]
             self._single_upload_url = data["data"]["value"]["singleUploadUrl"]
             self._log.debug(f"Media urn: {self._media_urn}")
@@ -603,6 +609,14 @@ class AttachmentCreator:
         del s.headers["Accept"]
         del s.headers["Content-Type"]
         self._log.debug("Deleted headers: Accept, Content-Type!")
+
+    def __reset(self) -> None:
+        '''Reinitialize the instance.'''
+        self._publication = None # type: ignore
+        self._media_urn = ""
+        self._single_upload_url = ""
+        self._upload_process_bar = None
+        self._log.debug("The instance has been reinitialized!")
 
     def __upload_file(self, s: Session) -> Optional[NoReturn]:
         '''Uploads a file.
@@ -624,8 +638,13 @@ class AttachmentCreator:
             })
 
         self._log.debug("Uploading file...")
-        data: bytes = self._publication.attachment_document.data
-        with s.put(self._single_upload_url, data=data) as req:
+        # data: bytes = self._publication.attachment_document.data
+        data_reader: CallbackIOWrapper = CallbackIOWrapper(
+                self._upload_process_bar.update, # type: ignore
+                BytesIO(self._publication.attachment_document.data),
+                "read"
+            )
+        with s.put(self._single_upload_url, data=data_reader) as req:
             # HTTP error
             if req.status_code != 201:
                 err: str = f"HTTP Code: {req.status_code}; Body: {req.text}"
@@ -639,13 +658,6 @@ class AttachmentCreator:
         del s.headers["media-type-family"]
         self._log.debug("Deleted headers: Accept, Content-Type, media-type-family!")
 
-    def __reset(self) -> None:
-        '''Reinitialize the instance.'''
-        self._publication = None # type: ignore
-        self._media_urn = ""
-        self._single_upload_url = ""
-        self._log.debug("The instance has been reinitialized!")
-
     def send(self, publication: Publication) -> Optional[NoReturn]:
         '''Send new publication with PDF file as document attachment.
 
@@ -656,6 +668,16 @@ class AttachmentCreator:
             UploadError
         '''
         self._publication = publication
+        # Set upload bar
+        self._upload_process_bar = tqdm(
+                desc="Uploading {}...".format(
+                        self._publication.attachment_document.file_name
+                    ),
+                total=len(self._publication.attachment_document),
+                unit='B',
+                unit_divisor=1024,
+                unit_scale=True
+            )
 
         self._log.debug("Setup session...")
         s: Session = Session()
