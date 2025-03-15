@@ -1,4 +1,5 @@
 from .exceptions import *
+from abc import ABC, abstractmethod
 from io import BytesIO
 from typing import List
 from os.path import basename, exists
@@ -15,6 +16,13 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 
 # Setup logger
 logger = logging.getLogger(__name__)
+
+class Log:
+    '''Provides an internal logger instance.'''
+
+    def __init__(self) -> None:
+        global logger
+        self._log: logging.Logger = logger.getChild(self.__class__.__name__)
 
 
 class Linkedin:
@@ -103,7 +111,7 @@ class Cookies(list):
         return r[0] if r else None
 
 
-class CookiesFileLoader:
+class CookiesFileLoader(Log):
     '''Parses json file export file by Cookie-Editor extension.'''
     # Stores the necessary elements for the API correctly operation
     REQUIRED = ["JSESSIONID"]
@@ -120,8 +128,7 @@ class CookiesFileLoader:
             InvalidFileError: When there is some json parsing
             error.
         '''
-        global logger
-        self._log: logging.Logger = logger.getChild(self.__class__.__name__)
+        Log.__init__(self)
         self._file_path: str = file_path
         self._cookies: Cookies = Cookies()
 
@@ -177,7 +184,7 @@ class CookiesFileLoader:
         return self._cookies
 
 
-class Document:
+class Document(Log):
     '''Represents PDF document that will be attached to a linkedin publication.
     
     Attributes:
@@ -200,8 +207,7 @@ class Document:
             FileNotFoundError: When file doesn't exists or is inaccessible.
             MaxFileSizeError: When file size exceeds maximum allowed.
         '''
-        global logger
-        self._log: logging.Logger = logger.getChild(self.__class__.__name__)
+        Log.__init__(self)
         self._title: str = title
         self._file_path: str = file_path
         self._file_data: bytes = b""
@@ -255,7 +261,7 @@ class Document:
         return self._title
 
 
-class Publication:
+class Publication(Log):
     '''Represents a linkedin publication.'''
 
     def __init__(self, **kwargs) -> None:
@@ -272,8 +278,7 @@ class Publication:
         Raises:
             Exception: When visibility is unknown.
         '''
-        global logger
-        self._log: logging.Logger = logger.getChild(self.__class__.__name__)
+        Log.__init__(self)
         self._text_comment: str = kwargs.get("text_comment", "")
         self._visibility: str = kwargs.get("visibility", "")
         self._document: Optional[Document] = kwargs.get("document", None)
@@ -337,7 +342,14 @@ class Publication:
         self._urn = urn
 
 
-class AttachmentCreator:
+class DocumentHandlerABC(ABC):
+    '''ABC for document handlers classes.'''
+
+    @abstractmethod
+    def reset(self) -> None: ...
+
+
+class AttachmentCreator(Log, DocumentHandlerABC):
     '''Create a new publication with a PDF document as attachment.'''
 
     def __init__(self, cookies: Cookies) -> None:
@@ -346,8 +358,7 @@ class AttachmentCreator:
         Raises:
             CookieNotFound: When JSESSIONID is not at cookies.
         '''
-        global logger
-        self._log: logging.Logger = logger.getChild(self.__class__.__name__)
+        Log.__init__(self)
         # Stores the publication to be sended (from upload method)
         self._publication: Publication
         self._cookies: Cookies = cookies
@@ -488,7 +499,7 @@ class AttachmentCreator:
         del s.headers["Content-Type"]
         self._log.debug("Deleted headers: Accept, Content-Type!")
 
-    def __reset(self) -> None:
+    def reset(self) -> None:
         '''Reinitialize the instance.'''
         self._publication = None # type: ignore
         self._media_urn = ""
@@ -578,10 +589,10 @@ class AttachmentCreator:
         self._log.debug("Waiting for file processing at server (5 seconds)...")
         sleep(5)
         self.__create_content(s)
-        self.__reset()
+        self.reset()
 
 
-class DocumentDownloader:
+class DocumentDownloader(Log, DocumentHandlerABC):
     '''Represents a Downloader handler for linkedin publications with PDF documents.
 
     Attributes:
@@ -591,8 +602,7 @@ class DocumentDownloader:
 
     def __init__(self) -> None:
         '''Initialize the download handler.'''
-        global logger
-        self._log: logging.Logger = logger.getChild(self.__class__.__name__)
+        Log.__init__(self)
         self._publication_shared_link: str = ""
         # Stores document url to retrieve json ld data.
         self._document_url: str = ""
@@ -740,7 +750,7 @@ class DocumentDownloader:
         self._document_url = manifest["transcribedDocumentUrl"]
         self._log.debug("Document url set")
 
-    def __reset(self) -> None:
+    def reset(self) -> None:
         '''Reinitialize the instance.'''
         self._document_id = 0
         self._document_url = ""
