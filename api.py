@@ -160,11 +160,15 @@ class CookiesFileLoader:
 
 
 class DocumentDownloader:
+    '''Represents a Downloader handler for linkedin publications with PDF documents.
+    
+    Attributes:
+        CHUNK_BUFFER (int): Bytes to download per every chunk.
+    '''
     CHUNK_BUFFER = 8192
 
     def __init__(self) -> None:
-        '''Allows to download a PDF document from own public feed.
-        '''
+        '''Initialize the download handler.'''
         global logger
         self._log: logging.Logger = logger.getChild(self.__class__.__name__)
         self._publication_path: str = ""
