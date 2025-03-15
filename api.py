@@ -353,10 +353,16 @@ class DocumentDownloader:
 
 
 class Document:
+    '''Represents PDF document that will be attached to a linkedin publication.
+    
+    Attributes:
+        MAX_SIZE (int): Max file size (in bytes) for the document.
+        Linkedin restricts the documents to 300 pages and 100MB max each.
+    '''
     MAX_SIZE = 104857600 # In bytes
 
     def __init__(self, title: str, file_path: str) -> None:
-        '''Document attachment
+        '''Initialize the attachment document.
 
         File size must satisfy Document.MAX_SIZE.
 
