@@ -7,7 +7,7 @@ from requests import Session
 from time import sleep
 from tqdm import tqdm
 from tqdm.utils import CallbackIOWrapper
-from typing import Dict, Optional, NoReturn, Union
+from typing import Dict, NoReturn, Optional, Union
 import json
 import logging
 
@@ -24,12 +24,22 @@ class Linkedin:
     VOYAGER_API = "https://www.linkedin.com/voyager/api/"
 
 class ContentVisibility:
+    '''Groups content cretion visibility.
+    
+    Attributes;
+        ANYONE: Anyone can view the publication (Non logged-in users included).
+        CONNECTIONS_ONLY: Only contacts can view the publication.
+    '''
     ANYONE = "ANYONE"
     CONNECTIONS_ONLY = "CONNECTIONS_ONLY"
 
     @staticmethod
     def is_valid(visibility: str) -> bool:
-        return visibility in vars(ContentVisibility).keys()
+        '''Check if given string visibility is valid one.'''
+        return visibility in [
+            ContentVisibility.ANYONE,
+            ContentVisibility.CONNECTIONS_ONLY
+        ]
 
 
 class Cookie:
