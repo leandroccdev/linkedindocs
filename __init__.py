@@ -15,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-# # Setup implicit loggers level
+# Setup implicit loggers level
 for l in [
         "httpcore.http11",
         "httpcore.connection",
