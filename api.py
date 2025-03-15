@@ -28,7 +28,7 @@ class Linkedin:
     '''
     BASE = "https://www.linkedin.com"
     FEED = "https://www.linkedin.com/feed/"
-    POST = "https://www.linkedin.com/posts/{}"
+    POST = "https://www.linkedin.com/posts/"
     VOYAGER_API = "https://www.linkedin.com/voyager/api/"
 
 
@@ -159,199 +159,6 @@ class CookiesFileLoader:
         return self._cookies
 
 
-class DocumentDownloader:
-    '''Represents a Downloader handler for linkedin publications with PDF documents.
-    
-    Attributes:
-        CHUNK_BUFFER (int): Bytes to download per every chunk.
-    '''
-    CHUNK_BUFFER = 8192
-
-    def __init__(self) -> None:
-        '''Initialize the download handler.'''
-        global logger
-        self._log: logging.Logger = logger.getChild(self.__class__.__name__)
-        self._publication_path: str = ""
-        # Stores document url to retrieve json ld data.
-        self._document_url: str = ""
-        # Stores document manifest url (contains document url).
-        self._manifest_url: str = ""
-
-    def __http_get(self, s: Session, url: str) -> Optional[Union[str, NoReturn]]:
-        '''Query a web resource and retrieve it contents as string.
-
-        Args:
-            s (requests.Session): HTTP Session.
-            url (str): Url to be requested.
-
-        Raises:
-            DownloadError
-
-        Returns:
-            The content of requested web resource.
-        '''
-        self._log.debug(f"Requesting: {url}")
-        with s.get(url) as req:
-            # Http error
-            if req.status_code != 200:
-                err: str = f"HTTP Code: {req.status_code}"
-                self._log.error(err)
-                self._log.error(f"Body: " + req.text)
-                raise DownloadError(err)
-
-            return req.text
-
-    def __download_file(self, output_file: str, s: Session) -> Optional[NoReturn]:
-        '''Downloads url and saves into output_file.
-
-        Args:
-            output_file (str): File path to save downloaded file.
-            s (requests.Session): HTTP Session.
-
-        Raises:
-            DownloadError
-            FileExistsError
-        '''
-        if not self._document_url:
-            err: str = "The document url is not set!"
-            self._log.error(err)
-            raise DownloadError(err)
-
-        if exists(output_file):
-            raise FileExistsError(output_file)
-
-        # Download with progress bar
-        self._log.debug(f"Downloading: {self._document_url}")
-        with s.get(self._document_url, stream=True) as req:
-            download_size: int = int(req.headers.get("content-length", 0))
-            req.raise_for_status()
-            with tqdm(
-                    total=download_size,
-                    unit="B",
-                    unit_scale=True
-                ) as pb, \
-                    open(output_file, 'wb') as f:
-                pb.write(f"Downloading: {output_file}...")
-                for chunk in req.iter_content(chunk_size=self.CHUNK_BUFFER):
-                    pb.update(len(chunk))
-                    f.write(chunk)
-        self._log.debug("Download finished!")
-
-    def __load_json_ld(self, s: Session) -> Optional[NoReturn]:
-        '''Loads json ld from document url.
-
-        Args:
-            s (requests.Session): HTTP Session.
-
-        Raises:
-            DownloadError
-        '''
-        json_ld_tag: str = '<script type="application/ld+json">'
-
-        self._log.debug("Retrieving json-ld data...")
-        url: str = Linkedin.POST.format(self._publication_path)
-        content: str = self.__http_get(s, url) # type: ignore
-
-        # json-ld tag not found
-        if json_ld_tag not in content:
-            err: str = f"json-ld tag not found!"
-            self._log.error(err)
-            raise DownloadError(err)
-
-        # Extract json-ld data
-        self._log.debug("Extracting json-ld data...")
-        ld_data: str = content.split(json_ld_tag)[1] \
-                .split("</script>")[0] \
-                .strip()
-        self._log.debug(f"json-ld data: '{ld_data}'")
-
-        # Try to decode data from json-ld
-        try:
-            data: Dict = json.loads(ld_data)
-        except json.decoder.JSONDecodeError as e:
-            self._log.error(e)
-            raise DownloadError(e)
-
-        # sharedContent not found
-        if "sharedContent" not in data:
-            err: str = "Key 'sharedContent' not found at json-ld data!"
-            self._log.error(err)
-            raise DownloadError(err)
-
-        # Document manifest url found
-        self._manifest_url = data["sharedContent"]["url"]
-        print(self._manifest_url)
-
-    def __load_manifest(self, s: Session) -> Optional[NoReturn]:
-        '''Loads document manifest.
-
-        Args:
-            s (requests.Session): HTTP Session.
-
-        Raises:
-            DownloadError
-        '''
-        if not self._manifest_url:
-            raise DownloadError("The manifest url is not set!")
-
-        self._log.debug("Retrieving manifest...")
-        content: str = self.__http_get(s, self._manifest_url) # type: ignore
-
-        # Try to decode manifest
-        try:
-            manifest: Dict = json.loads(content)
-        except json.decoder.JSONDecodeError as e:
-            self._log.error(e)
-            raise DownloadError(e)
-
-        # Document url not found at manifest
-        if "transcribedDocumentUrl" not in manifest:
-            err: str = "Key 'transcribedDocumentUrl' not found at manifest!"
-            self._log.error(err)
-            raise DownloadError(err)
-
-        self._document_url = manifest["transcribedDocumentUrl"]
-        self._log.debug("Document url set")
-
-    def __reset(self) -> None:
-        '''Reinitialize the instance.'''
-        self._document_id: int = 0
-        self._document_url: str = ""
-        self._manifest_url: str = ""
-        self._log.debug("The instance has been reinitialized!")
-
-    def download(self, publication_path: str, output_file: str
-            ) -> Optional[NoReturn]:
-        '''Downloads PDF document from linkedin user's public feed.
-
-        Args:
-            publication_path (str): Url Path of the publication which has the
-            document as attachment.
-            output_file (str): File path to save downloaded file.
-
-        Raises:
-            DownloadError
-            FileExistsError
-        '''
-        global USER_AGENT
-
-        if exists(output_file):
-            raise FileExistsError(output_file)
-
-        self._publication_path = publication_path
-        self._log.debug(f"Publication: {self._publication_path}")
-
-        self._log.debug("Creating session...")
-        s: Session = Session()
-        s.headers = {
-                "User-Agent": USER_AGENT
-            }
-        self.__load_json_ld(s)
-        self.__load_manifest(s)
-        self.__download_file(output_file, s)
-        self.__reset()
-
-
 class Document:
     '''Represents PDF document that will be attached to a linkedin publication.
     
@@ -433,25 +240,33 @@ class Document:
 class Publication:
     '''Represents a linkedin publication.'''
 
-    # def __init__(self, **kwargs) -> None:
-    def __init__(self, document: Document, text_comment: str, visibility: str
-            ) -> None:
+    def __init__(self, **kwargs) -> None:
         '''Initialize the publication.
+
+        Usage example:
+            - Publication(path="user-name-88782728_title-activity-8827282...")
+            For download a document.
+            - Publication(urn=7306526956718641152)
+            For Delete a publication.
+            - Publication(document=`Document`, text_comment="...", visibility="...")
+            For create new publication with PDF document as attachment.
 
         Raises:
             Exception: When visibility is unknown.
         '''
         global logger
         self._log: logging.Logger = logger.getChild(self.__class__.__name__)
-        self._text_comment: str = text_comment
-        self._visibility: str = visibility
-        self._document: Document = document
+        self._text_comment: str = kwargs.get("text_comment", "")
+        self._visibility: str = kwargs.get("visibility", "")
+        self._document: Optional[Document] = kwargs.get("document", None)
         # Stores publication url once publication was created
         self._url: str = ""
         # Stores resource urn once publication was created
-        self._urn: int = 0
+        self._urn: int = kwargs.get("urn", 0)
+        # name-lastname-[user-id]_[pub-title]-activity-[pub-urn]-[hash]/
+        self._path: str = kwargs.get("path", "")
 
-        if not ContentVisibility.is_valid(self._visibility):
+        if self._visibility and not ContentVisibility.is_valid(self._visibility):
             err: str = f"Visibility '{self._visibility}' is unknown!"
             self._log.error(err)
             raise Exception(err)
@@ -460,6 +275,11 @@ class Publication:
     def attachment_document(self) -> Document:
         '''Attachment document to be uploaded.'''
         return self._document
+
+    @property
+    def path(self) -> str:
+        '''Returns publication path or empty string.'''
+        return Linkedin.POST + self._path if self._path else ""
 
     @property
     def text_comment(self) -> str:
@@ -739,4 +559,202 @@ class AttachmentCreator:
         self._log.debug("Waiting for file processing at server (5 seconds)...")
         sleep(5)
         self.__create_content(s)
+        self.__reset()
+
+
+class DocumentDownloader:
+    '''Represents a Downloader handler for linkedin publications with PDF documents.
+
+    Attributes:
+        CHUNK_BUFFER (int): Bytes to download per every chunk.
+    '''
+    CHUNK_BUFFER = 8192
+
+    def __init__(self) -> None:
+        '''Initialize the download handler.'''
+        global logger
+        self._log: logging.Logger = logger.getChild(self.__class__.__name__)
+        self._publication_shared_link: str = ""
+        # Stores document url to retrieve json ld data.
+        self._document_url: str = ""
+        # Stores document manifest url (contains document url).
+        self._manifest_url: str = ""
+
+    def __http_get(self, s: Session, url: str) -> Optional[Union[str, NoReturn]]:
+        '''Query a web resource and retrieve it contents as string.
+
+        Args:
+            s (requests.Session): HTTP Session.
+            url (str): Url to be requested.
+
+        Raises:
+            DownloadError
+
+        Returns:
+            The content of requested web resource.
+        '''
+        global USER_AGENT
+        self._log.debug(f"Requesting: {url}")
+        headers: Dict = {
+            "Referer": Linkedin.FEED,
+            "User-Agent": USER_AGENT
+        }
+        with s.get(url, headers=headers) as req:
+            # Http error
+            if req.status_code != 200:
+                err: str = f"HTTP Code: {req.status_code}"
+                self._log.error(err)
+                # self._log.error(f"Body: " + req.text)
+                raise DownloadError(err)
+
+            return req.text
+
+    def __download_file(self, output_file: str, s: Session) -> Optional[NoReturn]:
+        '''Downloads url and saves into output_file.
+
+        Args:
+            output_file (str): File path to save downloaded file.
+            s (requests.Session): HTTP Session.
+
+        Raises:
+            DownloadError
+            FileExistsError
+        '''
+        if not self._document_url:
+            err: str = "The document url is not set!"
+            self._log.error(err)
+            raise DownloadError(err)
+
+        if exists(output_file):
+            raise FileExistsError(output_file)
+
+        # Download with progress bar
+        self._log.debug(f"Downloading: {self._document_url}")
+        with s.get(self._document_url, stream=True) as req:
+            download_size: int = int(req.headers.get("content-length", 0))
+            req.raise_for_status()
+            with tqdm(
+                    total=download_size,
+                    unit="B",
+                    unit_scale=True
+                ) as pb, \
+                    open(output_file, 'wb') as f:
+                pb.write(f"Downloading: {output_file}...")
+                for chunk in req.iter_content(chunk_size=self.CHUNK_BUFFER):
+                    pb.update(len(chunk))
+                    f.write(chunk)
+        self._log.debug("Download finished!")
+
+    def __load_json_ld(self, s: Session) -> Optional[NoReturn]:
+        '''Loads json ld from document url.
+
+        Args:
+            s (requests.Session): HTTP Session.
+
+        Raises:
+            DownloadError
+        '''
+        json_ld_tag: str = '<script type="application/ld+json">'
+
+        self._log.debug("Retrieving json-ld data...")
+        url: str = self._publication_shared_link
+        content: str = self.__http_get(s, url) # type: ignore
+
+        # json-ld tag not found
+        if json_ld_tag not in content:
+            err: str = f"json-ld tag not found!"
+            self._log.error(err)
+            raise DownloadError(err)
+
+        # Extract json-ld data
+        self._log.debug("Extracting json-ld data...")
+        ld_data: str = content.split(json_ld_tag)[1] \
+                .split("</script>")[0] \
+                .strip()
+        self._log.debug(f"json-ld data: '{ld_data}'")
+
+        # Try to decode data from json-ld
+        try:
+            data: Dict = json.loads(ld_data)
+        except json.decoder.JSONDecodeError as e:
+            self._log.error(e)
+            raise DownloadError(e)
+
+        # sharedContent not found
+        if "sharedContent" not in data:
+            err: str = "Key 'sharedContent' not found at json-ld data!"
+            self._log.error(err)
+            raise DownloadError(err)
+
+        # Document manifest url found
+        self._manifest_url = data["sharedContent"]["url"]
+        print(self._manifest_url)
+
+    def __load_manifest(self, s: Session) -> Optional[NoReturn]:
+        '''Loads document manifest.
+
+        Args:
+            s (requests.Session): HTTP Session.
+
+        Raises:
+            DownloadError
+        '''
+        if not self._manifest_url:
+            raise DownloadError("The manifest url is not set!")
+
+        self._log.debug("Retrieving manifest...")
+        content: str = self.__http_get(s, self._manifest_url) # type: ignore
+
+        # Try to decode manifest
+        try:
+            manifest: Dict = json.loads(content)
+        except json.decoder.JSONDecodeError as e:
+            self._log.error(e)
+            raise DownloadError(e)
+
+        # Document url not found at manifest
+        if "transcribedDocumentUrl" not in manifest:
+            err: str = "Key 'transcribedDocumentUrl' not found at manifest!"
+            self._log.error(err)
+            raise DownloadError(err)
+
+        self._document_url = manifest["transcribedDocumentUrl"]
+        self._log.debug("Document url set")
+
+    def __reset(self) -> None:
+        '''Reinitialize the instance.'''
+        self._document_id = 0
+        self._document_url = ""
+        self._manifest_url = ""
+        self._publication_shared_link = ""
+        self._log.debug("The instance has been reinitialized!")
+
+    def download(self, publication: Publication, output_file: str
+            ) -> Optional[NoReturn]:
+        '''Downloads PDF document from linkedin publication.
+
+        Args:
+            publication (`Publication`): Publication object.
+            output_file (str): File path to save downloaded file.
+
+        Raises:
+            DownloadError
+            FileExistsError
+        '''
+        global USER_AGENT
+
+        if exists(output_file):
+            raise FileExistsError(output_file)
+
+        self._publication_shared_link = publication.path
+        self._log.debug(f"Publication: {self._publication_shared_link}")
+
+        self._log.debug("Creating session...")
+        s: Session = Session()
+        s.headers = {
+                "User-Agent": USER_AGENT
+            }
+        self.__load_json_ld(s)
+        self.__load_manifest(s)
+        self.__download_file(output_file, s)
         self.__reset()
