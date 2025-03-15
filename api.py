@@ -361,6 +361,7 @@ class AttachmentCreator:
         if not self._c_jsession_id:
             self._log.error(f"Cookie 'JSESSIONID' is necesary for csrf token!")
             raise CookieNotFound("JSESSIONID")
+        self._c_jsession_value: str = self._c_jsession_id.value.replace('"', "")
 
     def __create_content(self, s: Session) -> Optional[NoReturn]:
         '''Creates the publication which the document as attachment.
@@ -565,7 +566,7 @@ class AttachmentCreator:
         # Setup minimun headers, each method setup their own headers itself
         s.headers = {
                 "Cookie": h_cookies,
-                "csrf-token": self._c_jsession_id.value.replace('"', ""), # type: ignore
+                "csrf-token": self._c_jsession_value,
                 "Origin": Linkedin.BASE,
                 "Referer": Linkedin.FEED,
                 "User-Agent": USER_AGENT
