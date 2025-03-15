@@ -52,6 +52,7 @@ class ContentVisibility:
 
 
 class Cookie:
+    '''Represents a HTTP Cookie.'''
 
     def __init__(self, **kwargs) -> None:
         '''Represents a cookie.
