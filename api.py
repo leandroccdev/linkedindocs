@@ -104,17 +104,18 @@ class Cookies(list):
 
 
 class CookiesFileLoader:
+    '''Parses json file export file by Cookie-Editor extension.'''
 
     def __init__(self, file_path: str) -> None:
-        '''Parses json file export file by Cookie-Editor extension.
+        '''Initializes the file parser instance.
 
         Args:
             file_path (str): cookies.json path.
 
         Raises:
-            CookiesFileLoader.EmptyFileError
-            CookiesFileLoader.FileNotFoundError
-            CookiesFileLoader.InvalidFileError: When there is some json parsing
+            EmptyFileError
+            FileNotFoundError
+            InvalidFileError: When there is some json parsing
             error.
         '''
         global logger
