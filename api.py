@@ -500,9 +500,10 @@ class Publication:
 
 
 class AttachmentCreator:
+    '''Create a new publication with a PDF document as attachment.'''
 
     def __init__(self, cookies: Cookies) -> None:
-        '''Create new publication with a pdf document as attachment.
+        '''Initialize the instance for create new publications (with attachments).
 
         Raises:
             CookieNotFound: When JSESSIONID is not at cookies.
