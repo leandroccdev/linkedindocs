@@ -83,9 +83,10 @@ class Cookie:
 
 
 class Cookies(list):
+    '''Represents a http cookie storages that inherit from list builtin.'''
 
     def __init__(self) -> None:
-        '''Cookies storage.'''
+        '''Initialize the storage.'''
         super().__init__()
 
     def append(self, c: Cookie) -> None:
