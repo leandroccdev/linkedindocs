@@ -18,10 +18,19 @@ logger = logging.getLogger(__name__)
 
 
 class Linkedin:
+    '''Groups common urls.
+
+    Attributes:
+        BASE (str): Base url
+        FEED (str): Linkedin feed url.
+        POST (str): Linkedin post url.
+        VOYAGER_API (str): Url to Linkedin voyager api.
+    '''
     BASE = "https://www.linkedin.com"
     FEED = "https://www.linkedin.com/feed/"
     POST = "https://www.linkedin.com/posts/{}"
     VOYAGER_API = "https://www.linkedin.com/voyager/api/"
+
 
 class ContentVisibility:
     '''Groups content cretion visibility.
