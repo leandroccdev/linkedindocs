@@ -15,8 +15,16 @@ Currently it's has been tested over Python3.13 but it should be compatible with 
 #### Installation
 By now this is the only way to install this module with pip.
 
-`pip3 install git+https://github.com/leandroccdev/linkedindocs`
+`pip install git+https://github.com/leandroccdev/linkedindocs`
 
 #### Documentation?
 
 Please see the `example` folder.
+
+#### Requires
+
+- colorama
+- requests
+- tqdm
+
+`pip install -r requirements.txt`
