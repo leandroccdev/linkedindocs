@@ -31,7 +31,8 @@ from .api import (
         Document,
         DocumentDeleter,
         DocumentDownloader,
-        Publication
+        Publication,
+        set_user_agent
     )
 from . import exceptions
 __all__ = [
@@ -43,5 +44,6 @@ __all__ = [
         "DocumentDeleter",
         "DocumentDownloader",
         "exceptions",
-        "Publication"
-    ]
+        "Publication",
+        set_user_agent
+    ] # type: ignore

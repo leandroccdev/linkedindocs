@@ -12,10 +12,37 @@ from typing import Dict, NoReturn, Optional, Union
 import json
 import logging
 
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
-
 # Setup logger
 logger = logging.getLogger(__name__)
+
+USER_AGENT = ""
+
+def check_user_agent_set() -> Optional[NoReturn]:
+    '''Checks if user agent constant was set.
+
+    Raises:
+        EmptyUserAgentError
+    '''
+    global USER_AGENT
+    if not USER_AGENT:
+        raise EmptyUserAgentError("You must call set_user_agent first!")
+
+def set_user_agent(ua: str):
+    '''Sets user agent.
+
+    Args:
+        ua (str): User agent to set.
+
+    Raises:
+        EmptyUserAgentError: When `ua` is empty.
+    '''
+    global logger, USER_AGENT
+    if not ua:
+        raise EmptyUserAgentError("ua is empty!")
+
+    USER_AGENT = ua
+    logger.debug("User agent set: " + ua)
+
 
 class Log:
     '''Provides an internal logger instance.'''
@@ -394,6 +421,7 @@ class AttachmentCreator(AccountSession, DocumentHandlerABC):
         self._single_upload_url: str = ""
         # Upload process bar
         self._upload_process_bar: Optional[tqdm] = None
+        check_user_agent_set()
 
     def __create_content(self, s: Session) -> Optional[NoReturn]:
         '''Creates the publication which the document as attachment.
@@ -626,6 +654,7 @@ class DocumentDownloader(Log, DocumentHandlerABC):
         self._document_url: str = ""
         # Stores document manifest url (contains document url).
         self._manifest_url: str = ""
+        check_user_agent_set()
 
     def __http_get(self, s: Session, url: str) -> Optional[Union[str, NoReturn]]:
         '''Query a web resource and retrieve it contents as string.
@@ -817,6 +846,7 @@ class DocumentDeleter(AccountSession, DocumentHandlerABC):
         # Store the activity urn. It's used to delete the publication with
         # the PDF document as attachment.
         self._activity_urn: int = 0
+        check_user_agent_set()
 
     def __request_activity_urn(self, s: Session) -> Optional[None]:
         '''Requests activity urn from publication urn.

@@ -16,6 +16,9 @@ class EmptyFileError(Exception):
         super().__init__(err)
 
 
+class EmptyUserAgentError(Exception): ...
+
+
 class FileExistsError(Exception):
     def __init__(self, output_file: str) -> None:
         err: str = f"File '{output_file}' already exists!"
