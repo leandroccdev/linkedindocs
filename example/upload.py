@@ -1,5 +1,3 @@
-# Uploads minimal example
-
 from linkedindocs import (
         AttachmentCreator,
         ContentVisibility,
