@@ -37,11 +37,13 @@ def set_user_agent(ua: str):
         EmptyUserAgentError: When `ua` is empty.
     '''
     global logger, USER_AGENT
+    _log: logging.Logger = logger.getChild(set_user_agent.__name__)
+
     if not ua:
         raise EmptyUserAgentError("ua is empty!")
 
     USER_AGENT = ua
-    logger.debug("User agent set: " + ua)
+    _log.debug("User agent set: " + ua)
 
 
 class Log:
