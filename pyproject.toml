@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linkedindocs"
+authors = [
+    { name = "Federico Leandro Cañellas", email = "federico.leandro.c@gmail.com" }
+]
+description = "Handles creation, deletion and download of documents at linkedin."
+readme = "README.md"
+requires-python = ">=3.8"
+version = "0.0.1"
+dependencies = [
+    "colorama",
+    "requests",
+    "tqdm"
+]
+license = { file = "LICENSE" }
