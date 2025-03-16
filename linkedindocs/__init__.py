@@ -13,7 +13,6 @@ logging.basicConfig(
         level=logging.DEBUG
     )
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 # Setup implicit loggers level
 for l in [
