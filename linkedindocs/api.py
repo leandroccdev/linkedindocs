@@ -50,6 +50,7 @@ class Log:
     '''Provides an internal logger instance.'''
 
     def __init__(self) -> None:
+        '''Initialize Log instance.'''
         global logger
         self._log: logging.Logger = logger.getChild(self.__class__.__name__)
 
