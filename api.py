@@ -31,11 +31,15 @@ class Linkedin:
     Attributes:
         BASE (str): Base url
         FEED (str): Linkedin feed url.
+        FEED_UPDATE (str): Linkedin feed update url (for activity operations).
         POST (str): Linkedin post url.
+        NOTIFICATIONS (str): Linkedin notifications url.
         VOYAGER_API (str): Url to Linkedin voyager api.
     '''
     BASE = "https://www.linkedin.com"
     FEED = "https://www.linkedin.com/feed/"
+    FEED_UPDATE = "https://www.linkedin.com/feed/update/urn:li:ugcPost:{}/"
+    NOTIFICATIONS = "https://www.linkedin.com/notifications/"
     POST = "https://www.linkedin.com/posts/"
     VOYAGER_API = "https://www.linkedin.com/voyager/api/"
 
@@ -430,7 +434,7 @@ class AttachmentCreator(AccountSession, DocumentHandlerABC):
             .replace("{media_title}", self._publication.attachment_document.title) \
             .replace("{media_urn}", self._media_urn) \
             .replace("{text_comment}", self._publication.text_comment)
-        self._log.debug(f"Query: {query}");
+        self._log.debug(f"Query: {query}")
         s.headers.update({
                 "Accept": "application/json; charset=UTF-8",
                 "Content-Type": "application/json; charset=UTF-8",
@@ -800,4 +804,163 @@ class DocumentDownloader(Log, DocumentHandlerABC):
         self.__load_json_ld(s)
         self.__load_manifest(s)
         self.__download_file(output_file, s)
-        self.__reset()
+        self.reset()
+
+
+class DocumentDeleter(AccountSession, DocumentHandlerABC):
+    '''Handles attachment document deletion by deleting its publication.'''
+
+    def __init__(self, cookies: Cookies) -> None:
+        '''Initialize the instance for deleting documents.'''
+        AccountSession.__init__(self, cookies)
+        self._publication: Optional[Publication] = None
+        # Store the activity urn. It's used to delete the publication with
+        # the PDF document as attachment.
+        self._activity_urn: int = 0
+
+    def __request_activity_urn(self, s: Session) -> Optional[None]:
+        '''Requests activity urn from publication urn.
+
+        Args:
+            s (requests.Session): HTTP Session.
+
+        Raises:
+            DeleteError
+        '''
+        if not hasattr(self._publication, "urn"):
+            err: str = f"Publication urn was not set!"
+            self._log.error(err)
+            raise DeleteError(err)
+
+        url: str = Linkedin.VOYAGER_API \
+            + "graphql?variables=(urnOrNss:urn%3Ali%3AugcPost%3A{})" \
+            + "&queryId=" \
+            + "voyagerFeedDashUpdates.cb66d9b199b3086f3f925f6df9ec53b5"
+        url = url.format(self._publication.urn) # type: ignore
+        s.headers.update({
+                "Accept": "application/json; charset=UTF-8"
+            })
+        self._log.debug("Url: " + url)
+        self._log.debug("Headers: " + str(s.headers))
+        with s.get(url) as req:
+            # HTTP error
+            if not req.status_code == 200:
+                err: str = f"HTTP Code: {req.status_code}; Body: {req.text}"
+                self._log.error(err)
+                raise DeleteError(err)
+
+            try:
+                data: Dict = req.json()
+            except json.JSONDecodeError as e:
+                self._log.error(e)
+                raise DeleteError(e)
+
+            self._log.debug("Response: " + req.text)
+            
+            elements: List = data["data"]["feedDashUpdatesByBackendUrnOrNss"] \
+                ["elements"]
+            self._activity_urn = int(
+                    elements[0]["metadata"]["backendUrn"] \
+                        .replace("urn:li:ugcPost:", "") \
+                        .replace("urn:li:activity:", "")
+                )
+            self._log.debug(f"Activity urn: {self._activity_urn}")
+
+        # Headers cleaning
+        del s.headers["Accept"]
+        self._log.debug("Deleted headers: Accept!")
+
+    def __delete_activity(self, s: Session) -> Optional[None]:
+        '''Request activity deletion based on publication urn.
+
+        Args:
+            s (requests.Session): HTTP Session.
+
+        Raises:
+            DeleteError
+        '''
+        if self._activity_urn == 0:
+            err: str = "Activity urn was not requested yet!"
+            self._log.error(err)
+            raise DeleteError(err)
+
+        query: str = '''{
+    "variables": {
+        "updateUrn": "urn:li:fsd_update:(urn:li:activity:{activity_urn},FEED_DETAIL,EMPTY,DEFAULT,false)"
+    },
+    "queryId": "voyagerContentcreationDashShares.c459f081c61de601a90d103fbea46496"
+}'''
+        query = query.replace("\n", "").replace("    ", "")
+        query = query.replace("{activity_urn}", str(self._activity_urn))
+        self._log.debug(f"Query: {query}")
+        s.headers.update({
+                "Accept": "application/json; charset=UTF-8",
+                "Content-Type": "application/json; charset=UTF-8",
+                "Referer": Linkedin.FEED_UPDATE.format(self._activity_urn)
+            })
+        url: str = Linkedin.VOYAGER_API \
+            + "graphql?action=execute&queryId=" \
+            + "voyagerContentcreationDashShares.c459f081c61de601a90d103fbea46496"
+        self._log.debug("Url: " + url)
+        self._log.debug("Headers: " + str(s.headers))
+
+        with s.post(url, data=query) as req:
+            # HTTP error
+            if not req.status_code == 200:
+                err: str = f"HTTP Code: {req.status_code}; Body: {req.text}"
+                self._log.error(err)
+                raise DeleteError(err)
+
+        try:
+            data: Dict = req.json()
+        except json.JSONDecodeError as e:
+            self._log.error(e)
+            raise DeleteError(e)
+
+        self._log.debug("Response: " + req.text)
+
+        # Deletion complete?
+        if "errors" in data["value"]:
+            err: str = "\n".join([e["message"] for e in data["value"]["errors"]])
+            self._log.error(err)
+            raise DeleteError(err)
+
+        if "restli_common_EmptyRecord" in req.text:
+            self._log.debug("Publication deleted!")
+
+        # Headers cleaning
+        del s.headers["Accept"]
+        del s.headers["Content-Type"]
+        del s.headers["Referer"]
+        self._log.debug("Deleted headers: Accept, Content-Type, Referer!")
+
+    def reset(self) -> None:
+        '''Reinitialize this instance.'''
+        self._publication = None
+        self._activity_urn = 0
+
+    def delete(self, publication: Publication) -> Optional[NoReturn]:
+        '''Delete a publication.
+
+        Args:
+            s (requests.Session): HTTP Session.
+
+        Raises:
+            DeleteError
+        '''
+        self._publication = publication
+        self._log.debug("Setup session...")
+        s: Session = Session()
+        # Setup minimun headers, each method setup their own headers itself
+        s.headers = {
+                "csrf-token": self._c_jsession_value,
+                "Origin": Linkedin.BASE,
+                "Referer": Linkedin.NOTIFICATIONS,
+                "User-Agent": USER_AGENT
+            }
+        #  Setup cookies is simpler this way
+        self._set_session_cookies(s)
+        self._log.debug("Initiating delete process...")
+        self.__request_activity_urn(s)
+        self.__delete_activity(s)
+        self.reset()

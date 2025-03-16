@@ -4,6 +4,9 @@ class CookieNotFound(Exception):
         super().__init__(err)
 
 
+class DeleteError(Exception): ...
+
+
 class DownloadError(Exception): ...
 
 
@@ -32,5 +35,6 @@ class MaxFileSizeError(Exception):
     def __init__(self, file_path: str, max_size: int) -> None:
         err: str = f"File '{file_path}' size exceeds maximum of {max_size} bytes!"
         super().__init__(err)
+
 
 class UploadError(Exception): ...

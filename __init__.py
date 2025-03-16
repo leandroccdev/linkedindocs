@@ -29,6 +29,7 @@ from .api import (
         CookiesFileLoader,
         ContentVisibility,
         Document,
+        DocumentDeleter,
         DocumentDownloader,
         Publication
     )
@@ -39,6 +40,7 @@ __all__ = [
         "CookiesFileLoader",
         "ContentVisibility",
         "Document",
+        "DocumentDeleter",
         "DocumentDownloader",
         "exceptions",
         "Publication"
