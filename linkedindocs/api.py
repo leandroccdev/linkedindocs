@@ -331,7 +331,7 @@ class Publication(Log):
     @property
     def attachment_document(self) -> Document:
         '''Attachment document to be uploaded.'''
-        return self._document
+        return self._document # type: ignore
 
     @property
     def path(self) -> str:
@@ -585,7 +585,7 @@ class AttachmentCreator(AccountSession, DocumentHandlerABC):
                 BytesIO(self._publication.attachment_document.data),
                 "read"
             )
-        with s.put(self._single_upload_url, data=data_reader) as req:
+        with s.put(self._single_upload_url, data=data_reader) as req: # type: ignore
             # HTTP error
             if req.status_code != 201:
                 err: str = f"HTTP Code: {req.status_code}; Body: {req.text}"
