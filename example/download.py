@@ -17,7 +17,6 @@ def main() -> None:
     logging.getLogger("linkedindocs").setLevel(logging.INFO)
     output_file: str = "downloaded.pdf"
 
-    # Read cookies file
     try:
         # Initialize document downloader handler
         dd: DocumentDownloader = DocumentDownloader()
