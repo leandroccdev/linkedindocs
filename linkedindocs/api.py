@@ -642,7 +642,7 @@ class AttachmentCreator(AccountSession, DocumentHandlerABC):
 
 
 class DocumentDownloader(Log, DocumentHandlerABC):
-    '''Represents a Downloader handler for linkedin publications with PDF documents.
+    '''Downloader handler for linkedin publications with PDF documents.
 
     Attributes:
         CHUNK_BUFFER (int): Bytes to download per every chunk.
