@@ -767,7 +767,6 @@ class DocumentDownloader(Log, DocumentHandlerABC):
 
         # Document manifest url found
         self._manifest_url = data["sharedContent"]["url"]
-        print(self._manifest_url)
 
     def __load_manifest(self, s: Session) -> Optional[NoReturn]:
         '''Loads document manifest.
