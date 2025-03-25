@@ -1,0 +1,26 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema#",
+    "$id": "http://linkedindocs.py/items",
+    "$defs": {
+        "name": {
+            "minLength": 1,
+            "title": "Cookie's name.",
+            "type": "string"
+        },
+        "value": {
+            "minLength": 0,
+            "title": "Cookie's value.",
+            "type": "string"
+        }
+    },
+    "items": {
+        "properties": {
+            "name": { "$ref": "#/$defs/name" },
+            "value": { "$ref": "#/$defs/value" }
+        },
+        "required": [ "name", "value" ],
+        "type": "object"
+    },
+    "title": "Array of objects.",
+    "type": "array"
+}

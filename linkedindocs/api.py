@@ -1,14 +1,16 @@
 from .exceptions import *
+from .util import SchemaLoader
 from abc import ABC, abstractmethod
+from jsonschema import validate
 from io import BytesIO
 from typing import List
-from os.path import basename, exists
-from os import stat
+from os.path import abspath, basename, dirname, exists, join
+from os import stat 
 from requests import Session
 from time import sleep
 from tqdm import tqdm
 from tqdm.utils import CallbackIOWrapper
-from typing import Dict, NoReturn, Optional, Union
+from typing import cast, Dict, NoReturn, Optional, Union
 import json
 import logging
 
@@ -16,6 +18,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 USER_AGENT = ""
+SCHEMAS_FOLDER = join(dirname(abspath(__file__)), "schemas")
 
 def check_user_agent_set() -> Optional[NoReturn]:
     '''Checks if user agent constant was set.
@@ -195,9 +198,15 @@ class CookiesFileLoader(Log):
         with open(self._file_path, "r") as f:
             data:str = f.read()
 
+        # Valids cookies json against schema
+        schema_path: str = join(SCHEMAS_FOLDER, "cookies.json")
+        cookies_schema = SchemaLoader.loads_json_file(schema_path)
+        cookies_schema = cast(Dict, cookies_schema)
+
         try:
             self._log.debug("Parsing...")
             cookies: Dict = json.loads(data)
+            validate(cookies, cookies_schema)
         except json.JSONDecodeError as e:
             self._log.error(e)
             raise InvalidFileError(e)
